@@ -7,11 +7,20 @@ if (isset($_POST['SignUp'])) {
     $firstName = trim($_POST['fName']);
     $lastName  = trim($_POST['lName']);
     $email     = trim($_POST['email']);
+    $gender    = $_POST['gender'];
+    $birthday  = $_POST['birthday'];
     $password  = $_POST['password'];
     $confirm   = $_POST['confirm_password'];
 
+    // Check password matching
     if ($password !== $confirm) {
         header("Location: index2.php?error=match&type=register");
+        exit();
+    }
+
+    // Check for complex password
+    if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)(?=.*[\W_]).{8,}$/', $password)) {
+        header("Location: index2.php?error=complex&type=register");
         exit();
     }
 
@@ -26,8 +35,9 @@ if (isset($_POST['SignUp'])) {
         header("Location: index2.php?error=exists&type=register");
         exit();
     } else {
-        $stmt = $conn->prepare("INSERT INTO users (firstName, lastName, email, password) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $firstName, $lastName, $email, $hashed_password);
+        // Updated to include gender and birthday
+        $stmt = $conn->prepare("INSERT INTO users (firstName, lastName, email, gender, birthday, password) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $firstName, $lastName, $email, $gender, $birthday, $hashed_password);
 
         if ($stmt->execute()) {
             header("Location: index2.php?registered=1");
@@ -41,6 +51,7 @@ if (isset($_POST['SignUp'])) {
 
 // SIGN IN
 if (isset($_POST['SignIn'])) {
+    // ... (Keep your existing Sign In code exactly as it is) ...
     $email    = trim($_POST['email']);
     $password = $_POST['password'];
 
@@ -57,7 +68,6 @@ if (isset($_POST['SignIn'])) {
         header("Location: homepage2.php");
         exit();
     } else {
-        // Redirect back with an invalid error
         header("Location: index2.php?error=invalid");
         exit();
     }
