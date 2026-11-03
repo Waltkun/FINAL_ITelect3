@@ -8,25 +8,23 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $uid = $_SESSION['user_id'];
-$firstName = $_SESSION['firstName'];
-$lastName = $_SESSION['lastName'];
 
-// Create student_profiles table if it doesn't exist
-$conn->query("CREATE TABLE IF NOT EXISTS student_profiles (
-    profile_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id    INT NOT NULL UNIQUE,
-    student_id VARCHAR(50) NULL,
-    middle_name VARCHAR(50)  NULL,
-    phone_no    VARCHAR(20)  NULL,
-    program     VARCHAR(100) NULL,
-    year_level  VARCHAR(20)  NULL,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)");
-
-$stmt = $conn->prepare("SELECT * FROM student_profiles WHERE user_id = ?");
+// Fetch User Data (Includes Gender and Birthday now)
+$stmt = $conn->prepare("SELECT * FROM users WHERE Id = ?");
 $stmt->bind_param("i", $uid);
 $stmt->execute();
-$profile = $stmt->get_result()->fetch_assoc() ?: [];
+$user = $stmt->get_result()->fetch_assoc();
+
+$firstName = $user['firstName'];
+$lastName = $user['lastName'];
+$gender = $user['gender'] ?? '';
+$birthday = $user['birthday'] ?? '';
+
+// Fetch Profile Data
+$stmt2 = $conn->prepare("SELECT * FROM student_profiles WHERE user_id = ?");
+$stmt2->bind_param("i", $uid);
+$stmt2->execute();
+$profile = $stmt2->get_result()->fetch_assoc() ?: [];
 
 $s_id = $profile['student_id'] ?? '';
 $middle = $profile['middle_name'] ?? '';
@@ -41,25 +39,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $new_s_id = trim($_POST['student_id']);
     $fname = trim($_POST['first_name']);
     $lname = trim($_POST['last_name']);
+    $gndr = $_POST['gender'];
+    $bday = $_POST['birthday'];
     $mid = trim($_POST['middle_name']);
     $ph = trim($_POST['phone_no']);
     $prog = trim($_POST['program']);
     $yr = trim($_POST['year_level']);
 
-    // Server-side validation for Student ID and Phone Number
     if (!empty($new_s_id) && (!ctype_digit($new_s_id) || strlen($new_s_id) > 9)) {
         $error = "Student ID must be numbers only and maximum 9 digits.";
     } elseif (!empty($ph) && (!ctype_digit($ph) || strlen($ph) > 11)) {
         $error = "Phone number must be numbers only and maximum 11 digits.";
     } else {
-        $u = $conn->prepare("UPDATE users SET firstName = ?, lastName = ? WHERE id = ?");
-        $u->bind_param("ssi", $fname, $lname, $uid);
+        // Update users table
+        $u = $conn->prepare("UPDATE users SET firstName = ?, lastName = ?, gender = ?, birthday = ? WHERE Id = ?");
+        $u->bind_param("ssssi", $fname, $lname, $gndr, $bday, $uid);
         $u->execute();
         $_SESSION['firstName'] = $fname;
         $_SESSION['lastName'] = $lname;
 
+        // Update profiles table
         $conn->query("INSERT IGNORE INTO student_profiles (user_id) VALUES ($uid)");
-        
         $p = $conn->prepare("UPDATE student_profiles SET student_id = ?, middle_name = ?, phone_no = ?, program = ?, year_level = ? WHERE user_id = ?");
         $p->bind_param("sssssi", $new_s_id, $mid, $ph, $prog, $yr, $uid);
         $p->execute();
@@ -93,7 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="pc-body">
             <aside class="pc-side">
                 <h1 class="pc-title"><span>Student</span>Profile</h1>
-                
                 <p class="pc-welcome" style="margin-top: 15px;">Hello, Welcome <?= htmlspecialchars($firstName . ' ' . $lastName) ?> :3</p>
                 <div class="avatar"><?= strtoupper(substr($firstName,0,1) . substr($lastName,0,1)) ?></div>
             </aside>
@@ -110,13 +109,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form method="post" action="homepage2.php">
                     <div class="grid">
                         
-                        <!-- STUDENT ID (EDITABLE) -->
+                        <!-- STUDENT ID -->
                         <div class="field" style="grid-column: span 2;">
                             <label>Student ID (Max 9 digits)</label>
-                            <!-- maxlength=9 prevents typing more than 9. oninput replaces any non-number -->
                             <input type="text" name="student_id" value="<?= htmlspecialchars($s_id) ?>" 
-                                   placeholder="e.g. 202400123" maxlength="9" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                placeholder="e.g. 202400123" maxlength="9" 
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </div>
 
                         <div class="field">
@@ -131,13 +129,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label>Middle Name</label>
                             <input type="text" name="middle_name" value="<?= htmlspecialchars($middle) ?>" placeholder="Optional">
                         </div>
+
+                        <!-- NEW: GENDER AND BIRTHDAY -->
+                        <div class="field">
+                            <label>Gender</label>
+                            <select name="gender" required>
+                                <option value="" disabled <?= empty($gender) ? 'selected' : '' ?>>Select Gender</option>
+                                <option value="Male" <?= $gender === 'Male' ? 'selected' : '' ?>>Male</option>
+                                <option value="Female" <?= $gender === 'Female' ? 'selected' : '' ?>>Female</option>
+                                <option value="Other" <?= $gender === 'Other' ? 'selected' : '' ?>>Other</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Birthday (mm/dd/yy)</label>
+                            <input type="text" name="birthday" value="<?= htmlspecialchars($birthday) ?>" 
+                                placeholder="mm/dd/yy" maxlength="10" required
+                                oninput="let v=this.value.replace(/\D/g,''); if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2); if(v.length>5)v=v.slice(0,5)+'/'+v.slice(5); this.value=v;">
+                        </div>
                         
-                        <!-- PHONE NUMBER (MAX 11) -->
+                        <!-- PHONE NUMBER -->
                         <div class="field">
                             <label>Phone Number (Max 11 digits)</label>
                             <input type="tel" name="phone_no" value="<?= htmlspecialchars($phone) ?>" 
-                                   placeholder="e.g. 09171234567" maxlength="11" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                placeholder="e.g. 09171234567" maxlength="11" 
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </div>
 
                         <div class="field">
