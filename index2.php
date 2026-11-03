@@ -70,12 +70,33 @@ if (isset($_SESSION['email'])) {
                 <label for="lName">Last Name</label>
             </div>
 
-            <div class="input-group">
+                <div class="input-group">
                 <i class="fas fa-envelope"></i>
                 <input type="email" name="email" id="reg-email" placeholder="Email" required>
                 <label for="reg-email">Email</label>
             </div>
 
+            <!-- NEW: GENDER AND BIRTHDAY (Wrapped in a flex row) -->
+            <div class="input-group" style="display: flex; gap: 20px; margin-top: 10px;">
+                
+                <!-- Gender Select -->
+                <div style="flex: 1; position: relative;">
+                    <i class="fas fa-venus-mars"></i>
+                    <select name="gender" id="reg-gender" required>
+                        <option value="" disabled selected>Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Birthday Input -->
+                <div style="flex: 1; position: relative;">
+                    <i class="fas fa-birthday-cake"></i>
+                    <input type="text" name="birthday" id="reg-birthday" placeholder="Birthday (mm/dd/yy)" maxlength="10" required>
+                </div>
+
+            </div>
             <div class="input-group">
                 <i class="fas fa-lock"></i>
                 <input type="password" name="password" id="reg-password" placeholder="Password" required minlength="6">
@@ -114,6 +135,18 @@ if (isset($_SESSION['email'])) {
 
 </div>
 
+
 <script src="script2.js"></script>
+
+<script>
+    // Auto-format birthday to mm/dd/yy
+    document.getElementById('reg-birthday').addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, ''); // Remove non-numbers
+        if (value.length > 2) value = value.slice(0, 2) + '/' + value.slice(2);
+        if (value.length > 5) value = value.slice(0, 5) + '/' + value.slice(5);
+        e.target.value = value;
+    });
+</script>
+
 </body>
 </html>
